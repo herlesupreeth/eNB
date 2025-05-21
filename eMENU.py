@@ -50,6 +50,7 @@ menu_list = [ '  0. Show current settings',     \
               ' 30. Control Plane Service Request',\
               ' 35. E-RAB ModificationIndication (5G)',\
               ' 36. Secondary RAT Data Usage Report (5G)',\
+              ' 37. HandoverRequired (SRVCC)',\
               ' ',                              \
               ' 40. PDN Connectivity',          \
               ' 41. PDN Disconnect',            \
@@ -474,6 +475,14 @@ def ProcessMenu(PDU, client, session_dict, msg):
             client = set_stream(client, 1)
             bytes_sent = client.send(message)  
   
+    elif msg == "37\n":
+        if session_dict['STATE'] >1: 
+
+            PDU.set_val(HandoverPreparation(session_dict))
+            message = PDU.to_aper()  
+            client = set_stream(client, 1)
+            bytes_sent = client.send(message)  
+
 
     elif msg == "40\n":
         if session_dict['STATE'] >1:

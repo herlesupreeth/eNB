@@ -831,6 +831,7 @@ def nas_attach_request(type, esm_information_transfer_flag, eps_identity, pdp_ty
         emm_list.append((0,'LV-E',nas_pdn_connectivity(0,1,pdp_type,None,pco,esm_information_transfer_flag, pdn_request_type)))
     
     if type[0] == "4G":
+        emm_list.append((0x31,'TLV',unhexlify('65a03e')))
         if attach_type == 2 and lai != None:
             emm_list.append((0x13, 'TV', lai))
         if attach_type == 2 and tmsi == None:
@@ -838,11 +839,14 @@ def nas_attach_request(type, esm_information_transfer_flag, eps_identity, pdp_ty
         
         if sms_update == True:
             emm_list.append((0xF, 'TV', 1))
+        
         emm_list.append((0xC, 'TV', 1))
         
         if attach_type == 2 and tmsi != None:
             emm_list.append((0x10, 'TLV', tmsi[-3:-2] + bytes([(tmsi[-2]//64)*64])))    
-
+        
+        
+        
         if type[1] == "PSM" or type[1] == "BOTH":
             emm_list.append((0x6A, 'TLV', b'\x0f')) # 15*2=30 sec.
             emm_list.append((0x5E, 'TLV', b'\x41'))
@@ -1815,6 +1819,23 @@ def UECapabilityInfoIndication(dic):
     return val    
 
 
+def HandoverPreparation(dic):
+
+    IEs = []
+    IEs.append({'id': 0, 'value': ('MME-UE-S1AP-ID', dic['MME-UE-S1AP-ID']), 'criticality': 'reject'})
+    IEs.append({'id': 8, 'value': ('ENB-UE-S1AP-ID', dic['ENB-UE-S1AP-ID']), 'criticality': 'reject'})
+    IEs.append({'id': 1, 'value': ('HandoverType', 'ltetoutran'), 'criticality': 'reject'})
+    IEs.append({'id': 2, 'value': ('Cause', ('radioNetwork', 'time-critical-handover')), 'criticality': 'ignore'})
+    IEs.append({'id': 4, 'value': ('TargetID', ('targetRNC-ID', {'lAI': {'pLMNidentity': dic['ENB-PLMN'], 'lAC': dic['ENB-TAC']}, 'rNC-ID': 1})), 'criticality': 'reject'})
+    IEs.append({'id': 125, 'value': ('SRVCCHOIndication', 'cSonly'), 'criticality': 'reject'})
+    IEs.append({'id': 104, 'value': ('Source-ToTarget-TransparentContainer', b'this is a dummy transparent container'), 'criticality': 'reject'})
+
+    val = ('initiatingMessage', {'procedureCode': 0, 'value': ('HandoverRequired', {'protocolIEs': IEs}), 'criticality': 'ignore'})
+        
+    dic = eMENU.print_log(dic, "S1AP: sending HandoverPreparation (HandoverRequired)")
+    return val   
+
+
 def ProcessLocationReportingControl(IEs, dic):
 
     for i in IEs:
@@ -2424,8 +2445,12 @@ def ProcessS1AP(PDU, client, session_dict, client_number):
         else:
             session_dict = eMENU.print_log(session_dict, "S1AP: " + procedure + " received") 
     elif type == 'unsuccessfulOutcome':
-        
-        exit(1)
+        procedure, protocolIEs_list = pdu_dict['value'][0], pdu_dict['value'][1]['protocolIEs']
+        if procedure == "HandoverPreparationFailure":
+            session_dict = eMENU.print_log(session_dict, "S1AP: HandoverPreparationFailure received")
+        else:
+            session_dict = eMENU.print_log(session_dict, "S1AP: " + procedure + " received") 
+            exit(1)
 
 
 
