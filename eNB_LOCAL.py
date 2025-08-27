@@ -1338,9 +1338,14 @@ def ProcessDownlinkNAS(dic):
                         dic = eMENU.print_log(dic, pdn_address)
                         if dic['PDN-ADDRESS-IPV4'] is not None:
                             if dic['GTP-KERNEL'] == False:
-                                subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True) 
+                                if dic['NETNS'] is None:
+                                    subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True) 
+                                else:
+                                    subprocess.call("ip netns exec " + dic['NETNS'] + " ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                             else:
                                 subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev lo", shell=True)
+                        if dic['PDN-ADDRESS-IPV6'] is not None and dic['NETNS'] is not None:
+                            subprocess.call("ip netns exec " + dic['NETNS'] + " ip -6 addr del " + dic['PDN-ADDRESS-IPV6'] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)                                
                         dic['PDN-ADDRESS-IPV4'] = None
                         dic['PDN-ADDRESS-IPV6'] = None
                         
@@ -1349,7 +1354,10 @@ def ProcessDownlinkNAS(dic):
                                           
                                 dic['PDN-ADDRESS-IPV4'] = x[1]
                                 if dic['GTP-KERNEL'] == False:
-                                    subprocess.call("ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)    
+                                    if dic['NETNS'] is None:
+                                        subprocess.call("ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)    
+                                    else:
+                                        subprocess.call("ip netns exec " + dic['NETNS'] + " ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                                 else:
                                     subprocess.call("ip addr add " + x[1] + "/32 dev lo", shell=True)       
        
@@ -1359,7 +1367,9 @@ def ProcessDownlinkNAS(dic):
                                 #    subprocess.call("ip -6 addr del " + dic['PDN-ADDRESS-IPV6'] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                                 dic['PDN-ADDRESS-IPV6'] = x[1]                   
                                 #subprocess.call("ip -6 addr add " + x[1] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
-                            
+                                if dic['NETNS'] is not None:
+                                    subprocess.call("ip netns exec " + dic['NETNS'] + " ip -6 addr add " + x[1] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+
                     elif m[0] == 'access point name':
                         
                         dic['EPS-BEARER-APN'][position] = m[1]
@@ -1620,9 +1630,14 @@ def ProcessDownlinkNAS(dic):
                 dic = eMENU.print_log(dic, pdn_address)
                 if dic['PDN-ADDRESS-IPV4'] is not None:
                     if dic['GTP-KERNEL'] == False:
-                        subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
-                    else:  
+                        if dic['NETNS'] is None:
+                            subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+                        else:
+                            subprocess.call("ip netns exec " + dic['NETNS'] + " ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+                    else:
                         subprocess.call("ip addr del " + dic['PDN-ADDRESS-IPV4'] + "/32 dev lo", shell=True)
+                if dic['PDN-ADDRESS-IPV6'] is not None and dic['NETNS'] is not None:
+                    subprocess.call("ip netns exec " + dic['NETNS'] + " ip -6 addr del " + dic['PDN-ADDRESS-IPV6'] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                 dic['PDN-ADDRESS-IPV4'] = None
                 dic['PDN-ADDRESS-IPV6'] = None               
                 
@@ -1631,7 +1646,10 @@ def ProcessDownlinkNAS(dic):
                         
                         dic['PDN-ADDRESS-IPV4'] = x[1]
                         if dic['GTP-KERNEL'] == False:
-                            subprocess.call("ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+                            if dic['NETNS'] is None:
+                                subprocess.call("ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+                            else:
+                                subprocess.call("ip netns exec " + dic['NETNS'] + " ip addr add " + x[1] + "/32 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                         else:
                             subprocess.call("ip addr add " + x[1] + "/32 dev lo", shell=True)
                     elif x[0] == 'ipv6':
@@ -1639,8 +1657,9 @@ def ProcessDownlinkNAS(dic):
                         #if dic['PDN-ADDRESS-IPV6'] is not None:
                         #    subprocess.call("ip -6 addr del " + dic['PDN-ADDRESS-IPV6'] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
                         dic['PDN-ADDRESS-IPV6'] = x[1]
-                        #subprocess.call("ip -6 addr add " + x[1] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)                            
-                
+                        #subprocess.call("ip -6 addr add " + x[1] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
+                        if dic['NETNS'] is not None:
+                            subprocess.call("ip netns exec " + dic['NETNS'] + " ip -6 addr add " + x[1] + "/64 dev tun" + str(dic['SESSION-TYPE-TUN']), shell=True)
 
             elif i[0] == 'access point name':
                 
@@ -2605,6 +2624,7 @@ def main():
     parser.add_option("--mme-2", dest="mme_2_ip", help="2nd MME IP Address")
     parser.add_option("--gtp-u", dest="gtp_u_ip", help="GTP-U address sent in S1AP. Used when eNB is behind NAT")
     parser.add_option("-A", "--apn", dest="apn", help="APN")
+    parser.add_option("-n", "--netns", dest="netns", help="Name of network namespace for tun device")
 
     (options, args) = parser.parse_args()
     #Detect if no options set:
@@ -2749,6 +2769,16 @@ def main():
     #for s1ap
     dev_nbiot = open_tun(2)
     session_dict['NBIOT-TUN'] = dev_nbiot
+
+    if options.netns is not None and options.gtp_kernel is False: #if both options are set, gtp_kernel is preferred
+        session_dict['NETNS'] = options.netns
+        subprocess.call("ip netns add " + options.netns, shell=True)
+        subprocess.call("ip link set dev tun1 netns " + session_dict['NETNS'], shell=True)
+        subprocess.call("ip netns exec " + session_dict['NETNS'] + " ip link set dev tun1 up", shell=True)
+        subprocess.call("ip link set dev tun2 netns " + session_dict['NETNS'], shell=True)
+        subprocess.call("ip netns exec " + session_dict['NETNS'] + " ip link set dev tun2 up", shell=True)
+    else:
+        session_dict['NETNS'] = None    
     
     pipe_in_gtpu_encapsulate, pipe_out_gtpu_encapsulate = os.pipe()
     pipe_in_gtpu_decapsulate, pipe_out_gtpu_decapsulate = os.pipe()

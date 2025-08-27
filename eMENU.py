@@ -119,7 +119,10 @@ def ProcessMenu(PDU, client, session_dict, msg):
             subprocess.call("killall gtp-link", shell=True)
             subprocess.call("modprobe -r gtp", shell=True) 
             if session_dict['PDN-ADDRESS-IPV4'] is not None:
-                subprocess.call("ip addr del " + session_dict['PDN-ADDRESS-IPV4'] + "/32 dev lo", shell=True)
+                if session_dict['NETNS'] is None:
+                    subprocess.call("ip addr del " + session_dict['PDN-ADDRESS-IPV4'] + "/32 dev lo", shell=True)
+        if session_dict['NETNS'] is not None:
+            subprocess.call("ip netns del " + session_dict['NETNS'], shell=True)
         os.system('clear')
         exit(1)    
 
@@ -519,13 +522,20 @@ def ProcessMenu(PDU, client, session_dict, msg):
                     os.write(session_dict['PIPE-OUT-GTPU-ENCAPSULATE'],session_dict['GTP-U'] + session_dict['SGW-GTP-ADDRESS'][-1] + session_dict['SGW-TEID'][-1])
                     os.write(session_dict['PIPE-OUT-GTPU-DECAPSULATE'],session_dict['GTP-U'] + session_dict['SGW-GTP-ADDRESS'][-1] + b'\x00\x00\x00' + bytes([session_dict['RAB-ID'][-1]]))
                 if session_dict['PDN-ADDRESS-IPV4'] is not None:
-                    if session_dict['GTP-KERNEL'] == False:                  
-                        subprocess.call("route add -net 0.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)    
-                        subprocess.call("route add -net 128.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
+                    if session_dict['GTP-KERNEL'] == False:
+                        if session_dict['NETNS'] is None:
+                            subprocess.call("route add -net 0.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)    
+                            subprocess.call("route add -net 128.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
+                        else:
+                            subprocess.call("ip netns exec " + session_dict['NETNS'] + " route add -net 0.0.0.0/0 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
+                            
                 if session_dict['PDN-ADDRESS-IPV6'] is not None:
-                    if session_dict['GTP-KERNEL'] == False: 
-                        subprocess.call("route -A inet6 add ::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN']) , shell=True) 
-                        subprocess.call("route -A inet6 add 8000::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN'])  , shell=True)
+                    if session_dict['GTP-KERNEL'] == False:
+                        if session_dict['NETNS'] is None:
+                            subprocess.call("route -A inet6 add ::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN']), shell=True)
+                            subprocess.call("route -A inet6 add 8000::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN']), shell=True)
+                        else:
+                            subprocess.call("ip netns exec " + session_dict['NETNS'] + " route -A inet6 add ::/0 dev tun" + str(session_dict['SESSION-TYPE-TUN']), shell=True)
                 if session_dict['GATEWAY'] is not None and len(session_dict['SGW-GTP-ADDRESS']) > 0:
                     subprocess.call("route add " + socket.inet_ntoa(session_dict['SGW-GTP-ADDRESS'][-1])  + "/32 gw " + session_dict['GATEWAY'], shell=True)
                 if session_dict['GTP-KERNEL'] == True:                 
@@ -546,13 +556,19 @@ def ProcessMenu(PDU, client, session_dict, msg):
                 os.write(session_dict['PIPE-OUT-GTPU-ENCAPSULATE'],session_dict['GTP-U'] + session_dict['SGW-GTP-ADDRESS'][-1] + session_dict['SGW-TEID'][-1])
                 os.write(session_dict['PIPE-OUT-GTPU-DECAPSULATE'],session_dict['GTP-U'] + session_dict['SGW-GTP-ADDRESS'][-1] + b'\x00\x00\x00' + bytes([session_dict['RAB-ID'][-1]]))
             if session_dict['PDN-ADDRESS-IPV4'] is not None: 
-                if session_dict['GTP-KERNEL'] == False:     
-                    subprocess.call("route del -net 0.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)    
-                    subprocess.call("route del -net 128.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
+                if session_dict['GTP-KERNEL'] == False:
+                    if session_dict['NETNS'] is None:    
+                        subprocess.call("route del -net 0.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)    
+                        subprocess.call("route del -net 128.0.0.0/1 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
+                    else:
+                        subprocess.call("ip netns exec " + session_dict['NETNS'] + " route del -net 0.0.0.0/0 gw " + session_dict['PDN-ADDRESS-IPV4'], shell=True)
             if session_dict['PDN-ADDRESS-IPV6'] is not None:
-                if session_dict['GTP-KERNEL'] == False: 
-                    subprocess.call("route -A inet6 del ::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN']) , shell=True) 
-                    subprocess.call("route -A inet6 del 8000::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN'])  , shell=True)    
+                if session_dict['GTP-KERNEL'] == False:
+                    if session_dict['NETNS'] is None:
+                        subprocess.call("route -A inet6 del ::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN']) , shell=True) 
+                        subprocess.call("route -A inet6 del 8000::/1 dev tun" + str(session_dict['SESSION-TYPE-TUN'])  , shell=True)    
+                    else:
+                        subprocess.call("ip netns exec " + session_dict['NETNS'] + " route -A inet6 del ::/0 dev tun" + str(session_dict['SESSION-TYPE-TUN']), shell=True)
             if session_dict['GATEWAY'] is not None and len(session_dict['SGW-GTP-ADDRESS']) > 0:
                 subprocess.call("route del " + socket.inet_ntoa(session_dict['SGW-GTP-ADDRESS'][-1])  + "/32 gw " + session_dict['GATEWAY'], shell=True)
             if session_dict['GTP-KERNEL'] == True:
